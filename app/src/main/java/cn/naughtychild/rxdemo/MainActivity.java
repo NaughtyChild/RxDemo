@@ -7,8 +7,12 @@ import android.util.Log;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import javax.xml.namespace.NamespaceContext;
@@ -27,7 +31,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        all();
+        toMap();
     }
 
     private void interval() {
@@ -341,6 +345,38 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void call(Boolean aBoolean) {
                 Log.d("MainActivity", "call: " + aBoolean);
+            }
+        });
+    }
+
+    private void toMap() {
+        Observable.just(1, 2, 3).toMap(new Func1<Integer, String>() {
+            @Override
+            public String call(Integer integer) {
+                String result = "";
+                switch (integer) {
+                    case 1:
+                        result = "one";
+                        break;
+                    case 2:
+                        result = "two";
+                        break;
+                    case 3:
+                        result = "three";
+                        break;
+                }
+                return result;
+            }
+        }).subscribe(new Action1<Map<String, Integer>>() {
+            @Override
+            public void call(Map<String, Integer> map) {
+                Set<String> keys = map.keySet();
+                Iterator<String> iterator = keys.iterator();
+                while (iterator.hasNext()) {
+                   String key= iterator.next();
+                   int value=map.get(key);
+                    Log.d("MainActivity", "key="+key+",value="+value);
+                }
             }
         });
     }
