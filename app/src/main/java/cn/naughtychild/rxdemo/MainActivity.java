@@ -2,6 +2,7 @@ package cn.naughtychild.rxdemo;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
+import android.print.PrinterId;
 import android.util.Log;
 
 import java.lang.reflect.Array;
@@ -13,16 +14,27 @@ import java.util.function.Consumer;
 import javax.xml.namespace.NamespaceContext;
 
 import rx.Observable;
+import rx.Scheduler;
+import rx.Subscriber;
 import rx.functions.Action1;
 import rx.functions.Func1;
+import rx.functions.Func2;
 import rx.observables.GroupedObservable;
+import rx.subjects.PublishSubject;
 
 public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        groupBy();
+        new Thread() {
+            @Override
+            public void run() {
+                super.run();
+                combineLastTest();
+            }
+        }.start();
+        PublishSubject<String> subject=PublishSubject.create();
     }
 
     private void interval() {
@@ -111,24 +123,132 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void groupBy() {
-        SwordMan man1 = (new SwordMan("奇数", 1));
-        SwordMan man2 = (new SwordMan("偶数", 2));
-        SwordMan man3 = (new SwordMan("奇数", 3));
-        SwordMan man4 = (new SwordMan("偶数", 4));
-        SwordMan man5 = (new SwordMan("奇数", 5));
-        SwordMan man6 = (new SwordMan("偶数", 6));
-        SwordMan man7 = (new SwordMan("奇数", 7));
-        Observable<GroupedObservable<String, SwordMan>> observable =
-                Observable.just(man1, man2, man3, man4, man5).groupBy(new Func1<SwordMan, String>() {
+        Observable<GroupedObservable<Boolean, Integer>> observable =
+                Observable.just(1, 2, 3, 4, 5).groupBy(new Func1<Integer, Boolean>() {
                     @Override
-                    public String call(SwordMan man) {
-                        return man.getName();
+                    public Boolean call(Integer integer) {
+                        return integer % 2 == 1;
                     }
                 });
-        Observable.concat(observable).subscribe(new Action1<SwordMan>() {
+        Observable.concat(observable).subscribe(new Action1<Integer>() {
             @Override
-            public void call(SwordMan man) {
-                Log.d("MainActivity", "call: " + man.getName() + "---value:" + man.getValue());
+            public void call(Integer integer) {
+                Log.d("MainActivity", "call: " + integer);
+            }
+        });
+    }
+
+    private void filter() {
+        Observable.just(1, 2, 3, 4, 5, 6, 7, 8, 9).filter(new Func1<Integer, Boolean>() {
+            @Override
+            public Boolean call(Integer integer) {
+                return integer > 2;
+            }
+        }).subscribe(new Action1<Integer>() {
+            @Override
+            public void call(Integer integer) {
+                Log.d("MainActivity", "call: " + integer);
+            }
+        });
+    }
+
+    private void elementAt() {
+        Observable.just(1, 2, 3, 4).elementAtOrDefault(5, 1000).subscribe(new Action1<Integer>() {
+            @Override
+            public void call(Integer integer) {
+                Log.d("MainActivity", "call: " + integer);
+            }
+        });
+    }
+
+    private void distinct() {
+        Observable.just(1, 2, 2, 3, 3, 4, 4, 4, 5).distinct(new Func1<Integer, Boolean>() {
+            @Override
+            public Boolean call(Integer integer) {
+                return integer % 2 == 1;
+            }
+        }).subscribe(new Action1<Integer>() {
+            @Override
+            public void call(Integer integer) {
+                Log.d("MainActivity", "call: " + integer);
+            }
+        });
+    }
+
+    private void skip() {
+        //or take
+        Observable.just(1, 2, 3, 4, 5, 6, 7, 8).skipLast(2).subscribe(new Action1<Integer>() {
+            @Override
+            public void call(Integer integer) {
+                Log.d("MainActivity", "call: " + integer);
+            }
+        });
+    }
+
+    private void throttleFirst() {
+        //发射指定一段时间内的首个数据，类似于首例取样
+        Observable.interval(100, TimeUnit.MILLISECONDS).throttleFirst(1, TimeUnit.SECONDS).subscribe(new Action1<Long>() {
+            @Override
+            public void call(Long aLong) {
+                Log.d("MainActivity", "call: " + aLong);
+            }
+        });
+    }
+
+    private void throttleWithTimeOut() {
+        Observable.create(new Observable.OnSubscribe<Integer>() {
+            @Override
+            public void call(Subscriber<? super Integer> subscriber) {
+                for (int i = 0; i < 10; i++) {
+                    subscriber.onNext(i);
+                    int sleep = 100;
+                    if (i % 3 == 0) {
+                        sleep = 300;
+                    }
+                    try {
+                        Thread.sleep(sleep);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                subscriber.onCompleted();
+            }
+        }).throttleWithTimeout(200, TimeUnit.MILLISECONDS).subscribe(new Action1<Integer>() {
+            @Override
+            public void call(Integer integer) {
+                Log.d("MainActivity", "throttleWithTimeOut:" + integer);
+            }
+        });
+    }
+
+    private void zip() {
+        Observable<Integer> observable1 = Observable.just(1, 2, 3, 4);
+        Observable<String> observable2 = Observable.just("a", "b", "c");
+        Observable.zip(observable1, observable2, new Func2<Integer, String, String>() {
+            @Override
+            public String call(Integer integer, String s) {
+                return integer + s;
+            }
+        }).subscribe(new Action1<String>() {
+            @Override
+            public void call(String s) {
+                Log.d("MainActivity", "call: " + s);
+            }
+        });
+    }
+
+    private void combineLastTest() {
+        Observable<Long> obs1 = Observable.interval(2, TimeUnit.SECONDS);
+        Observable<Long> obs2 = Observable.interval(1, TimeUnit.SECONDS);
+        Observable.combineLatest(obs1, obs2, new Func2<Long, Long, String>() {
+            @Override
+            public String call(Long aLong, Long aLong2) {
+                return aLong + "---" + aLong2;
+            }
+        }).subscribe(new Action1<String>() {
+            @Override
+            public void call(String s) {
+                Log.d("MainActivity", "call: " + s);
             }
         });
     }
